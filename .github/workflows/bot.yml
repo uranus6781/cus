@@ -1,0 +1,65 @@
+name: ⚽ Scrape Bóng Đá M3U8
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+
+  workflow_dispatch:
+
+jobs:
+
+  scrape:
+
+    runs-on: ubuntu-22.04
+
+    timeout-minutes: 20
+
+    steps:
+
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: 🌐 Install Chrome
+      uses: browser-actions/setup-chrome@v1
+
+    - name: 💾 Cache Playwright
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright
+
+    - name: 📦 Install dependencies
+      run: |
+
+        python -m pip install --upgrade pip
+
+        pip install -r requirements.txt
+
+        playwright install --with-deps chromium
+
+    - name: 🚀 Run bot
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+
+      run: |
+
+        python main.py
+
+    - name: 📄 Show output
+      run: |
+        ls -la
+        # Kiểm tra sự tồn tại của file .m3u thay vì .json
+        if [ -f bongda.m3u ]; then
+          echo "✅ bongda.m3u created"
+          echo "--- Preview (First 20 lines) ---"
+          cat bongda.m3u | head -20
+        else
+          echo "❌ bongda.m3u missing"
+          exit 1
+        fi
