@@ -2,64 +2,56 @@ name: ⚽ Scrape Bóng Đá M3U8
 
 on:
   schedule:
+    # Chạy mỗi 30 phút. Bạn có thể chỉnh thành '*/20' nếu muốn cập nhật nhanh hơn
     - cron: '*/30 * * * *'
-
   workflow_dispatch:
 
 jobs:
-
   scrape:
-
-    runs-on: ubuntu-22.04
-
-    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 25 # Tăng thêm một chút vì Playwright cào nhiều trang có thể chậm
 
     steps:
-
-    - name: 📥 Checkout
+    - name: 📥 Checkout Repository
       uses: actions/checkout@v4
 
     - name: 🐍 Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip' # Tự động cache pip để chạy nhanh hơn ở các lần sau
 
-    - name: 🌐 Install Chrome
-      uses: browser-actions/setup-chrome@v1
-
-    - name: 💾 Cache Playwright
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright
-
-    - name: 📦 Install dependencies
+    - name: 📦 Install Dependencies
       run: |
-
         python -m pip install --upgrade pip
-
-        pip install -r requirements.txt
-
+        # Cài đặt các thư viện cần thiết trực tiếp nếu file requirements.txt chưa cập nhật
+        pip install requests playwright playwright-stealth PyGithub
         playwright install --with-deps chromium
 
-    - name: 🚀 Run bot
+    - name: 🚀 Run Scraper
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
         GH_REPO: ${{ github.repository }}
-
       run: |
-
         python main.py
 
-    - name: 📄 Show output
+    - name: 📄 Verify Outputs
       run: |
+        echo "--- Danh sách file hiện tại ---"
         ls -la
-        # Kiểm tra sự tồn tại của file .m3u thay vì .json
+        
+        echo "--- Kiểm tra file M3U ---"
         if [ -f bongda.m3u ]; then
-          echo "✅ bongda.m3u created"
-          echo "--- Preview (First 20 lines) ---"
-          cat bongda.m3u | head -20
+          echo "✅ bongda.m3u tồn tại."
+          head -n 10 bongda.m3u
         else
-          echo "❌ bongda.m3u missing"
+          echo "❌ LỖI: Không tìm thấy bongda.m3u"
           exit 1
+        fi
+
+        echo "--- Kiểm tra file JSON ---"
+        if [ -f bongda.json ]; then
+          echo "✅ bongda.json tồn tại."
+        else
+          echo "⚠️ CẢNH BÁO: Không thấy bongda.json (Kiểm tra lại hàm push_to_github)"
         fi
